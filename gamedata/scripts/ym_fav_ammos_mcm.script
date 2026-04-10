@@ -1,38 +1,44 @@
 local defaults = ym_fav_ammos.defaults
 
 options = {}
+
+
+
+options = {
+    id = "autofavorite_ammos",
+    sh = true,
+    gr = {
+        {
+            id = "title",
+            type = "slide",
+            text = "ui_mcm_autofavorite_ammos_title",
+            size = { 512, 50 },
+            spacing = 20
+        },
+        { id = "ENABLE",   type = "check", val = 1, def = defaults.ENABLE },
+        { id = "FAVORITE_AMMO",   type = "check", val = 1, def = defaults.FAVORITE_AMMO },
+        { id = "FAVORITE_ADDONS", type = "check", val = 1, def = defaults.FAVORITE_ADDONS },
+        { id = "FAVORITE_SCOPES", type = "check", val = 1, def = defaults.FAVORITE_SCOPES },
+        { id = "FAVORITE_TRADE_AMMO",   type = "check", val = 1, def = defaults.FAVORITE_TRADE_AMMO },
+        { id = "FAVORITE_TRADE_ADDONS", type = "check", val = 1, def = defaults.FAVORITE_TRADE_ADDONS },
+        { id = "FAVORITE_TRADE_SCOPES", type = "check", val = 1, def = defaults.FAVORITE_TRADE_SCOPES },
+    },
+}
+
+-- for k,v in pairs(defaults) do
+--     options.gr[#options.gr +1] = {
+--         id = tostring(k),
+--         type = "check",
+--         val = 1,
+--         def = v
+--     }        
+
+-- end
+
+
+
 function on_mcm_load()
     defaults = ym_fav_ammos.defaults 
-
-    options = {
-        id = "autofavorite_ammos",
-        sh = true,
-        gr = {
-            {
-                id = "title",
-                type = "slide",
-                text = "ui_mcm_autofavorite_ammos_title",
-                size = { 512, 50 },
-                spacing = 20
-            },
-            -- { id = "ENABLE",   type = "check", val = 1, def = defaults.ENABLE },
-            -- { id = "FAVORITE_AMMO",   type = "check", val = 1, def = defaults.FAVORITE_AMMO },
-            -- { id = "FAVORITE_ADDONS", type = "check", val = 1, def = defaults.FAVORITE_ADDONS },
-            -- { id = "FAVORITE_SCOPES", type = "check", val = 1, def = defaults.FAVORITE_SCOPES },
-            -- { id = "TRADE_ONLY", type = "check", val = 1, def = defaults.TRADE_ONLY },
-        },
-    }
-
-    for k,v in pairs(ym_fav_ammos.defaults) do
-        options.gr[0][#options.gr[0]+1] = {
-            id = tostring(k),
-            type = "check",
-            val = 1,
-            def = v
-        }        
-
-    end
-    
     return options
 end
 

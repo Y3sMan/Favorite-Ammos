@@ -232,11 +232,9 @@ defaults = {
     FAVORITE_AMMO = true,
     FAVORITE_ADDONS = true,
     FAVORITE_SCOPES = true,
-    ---@type boolean Only favorite ammos in trade/storage menus, and unfavorite when you leave those menus
-    ---
-    ---If `true`, favorite only in trade/bag inventories
-    TRADE_ONLY = false,
 
+    -- controls if you want each category to be favorited in trade/storage menus
+    -- set separately from the above settings to allow favoriting ammos and etc *only* in trade/storage, and unfavorite when you close
     FAVORITE_TRADE_AMMO = true,
     FAVORITE_TRADE_ADDONS = true,
     FAVORITE_TRADE_SCOPES = true,
@@ -271,90 +269,85 @@ is_trading = false
 
 --------------------------------------------
 
----Auto favorite all potential addons, scopes, and kits for all currently equipped weapons
-function manage_ammo_favorites()
-    debug("starting autofavorite_ammos process")
 
-    -- clear favorites
+function clear_favorites()
     debug("clearing old favorites")
     local g_pairs = pairs
     for k, ammo in g_pairs(favorites_ammos_addons_scopes) do
         set_favorite(ammo, false)
         favorites_ammos_addons_scopes[k] = nil
     end
+end
+
+---Auto favorite all potential addons, scopes, and kits for all currently equipped weapons
+function manage_ammo_favorites()
+    debug("starting autofavorite_ammos process")
+
+    -- clear favorites
+    clear_favorites()
 
     debug("checking if enabled or trading")
-    -- skip re-favoriting 
-    if  (not settings.ENABLE) or ((settings.TRADE_ONLY) and not is_trading) then return end
+    -- skip re-favoriting
+    if (not settings.ENABLE) then return end
 
     debug("actor check")
     if not db.actor then return end
 
     debug("starting new favorites process")
     -- continue on to favorite equipped ammos, etc
+    local g_pairs = pairs
     for slot, _ in g_pairs(slots) do
         debug("working on slot %s", slot)
         local wpn = db.actor:item_in_slot(slot)
-        if wpn and not (IsItem("fake_ammo_wpn",wpn:section())) then
-            local sec,scopes, ammo_list
+        if wpn and not (IsItem("fake_ammo_wpn", wpn:section())) then
+            local sec, scopes, ammo_list
 
             sec = wpn:section()
             debug("working on weapon %s", sec)
 
             -- check if player wants to favorite ammos
-            -- if not settings.FAVORITE_AMMO then goto scopes end
-
             debug("checking if favorite ammo")
-            if settings.FAVORITE_AMMO then
+            if settings.FAVORITE_AMMO or (settings.FAVORITE_TRADE_AMMO and is_trading) then
                 debug("working on ammos")
-            ammo_list = get_ammo(nil, wpn:id(), true)
-            for ammo, _ in g_pairs(ammo_list) do
-                set_favorite(ammo, true)
-                favorites_ammos_addons_scopes[#favorites_ammos_addons_scopes + 1] = ammo
-            end
+                ammo_list = get_ammo(nil, wpn:id(), true)
+                for ammo, _ in g_pairs(ammo_list) do
+                    set_favorite(ammo, true)
+                    favorites_ammos_addons_scopes[#favorites_ammos_addons_scopes + 1] = ammo
+                end
             end
 
-            -- ::scopes::
 
             -- check if player wants to favorite scopes
-            -- if not settings.FAVORITE_SCOPES then goto addons end
-
             debug("checking if favorite scopes")
-            if settings.FAVORITE_SCOPES then
+            if settings.FAVORITE_SCOPES or (settings.FAVORITE_TRADE_SCOPES and is_trading) then
                 debug("working on scopes")
-            scopes = {}
-            scopes = SYS_GetParam(0, sec, "scopes")
-            if (scopes) then
-                scopes = str_explode(scopes, ",")
-                for _, v in g_pairs(scopes) do
-                    if v ~= "none" then
-                        set_favorite(v, true)
-                        favorites_ammos_addons_scopes[#favorites_ammos_addons_scopes + 1] = v
+                scopes = {}
+                scopes = SYS_GetParam(0, sec, "scopes")
+                if (scopes) then
+                    scopes = str_explode(scopes, ",")
+                    for _, v in g_pairs(scopes) do
+                        if v ~= "none" then
+                            set_favorite(v, true)
+                            favorites_ammos_addons_scopes[#favorites_ammos_addons_scopes + 1] = v
+                        end
                     end
                 end
             end
 
-        end
 
-            -- ::addons::
-  
-            -- check if player wants to favorite addons
-            -- if not settings.FAVORITE_ADDONS then goto continue end
 
+            -- check if player wants to favorite addons 
             debug("checking if favorite addons")
-            if settings.FAVORITE_ADDONS then
+            if settings.FAVORITE_ADDONS or (settings.FAVORITE_TRADE_ADDONS and is_trading) then
                 debug("working on addons")
-            for param, _ in g_pairs(addons) do
-                local addon = utils_item.get_wpn_param(wpn, sec, param)
-                if addon then
-                    favorites_ammos_addons_scopes[#favorites_ammos_addons_scopes + 1] = addon
-                    set_favorite(addon, true)
+                for param, _ in g_pairs(addons) do
+                    local addon = utils_item.get_wpn_param(wpn, sec, param)
+                    if addon then
+                        favorites_ammos_addons_scopes[#favorites_ammos_addons_scopes + 1] = addon
+                        set_favorite(addon, true)
+                    end
                 end
             end
-        end
-
-            -- end
-            -- ::continue::
         end
     end
 end
@@ -402,6 +395,7 @@ function on_gui_hide(name)
         local m = ui_inventory.GUI.mode
         if valid_guis[m] then 
             debug("attempting to clear favorites")
+            -- clear_favorites()
             is_trading = false
             manage_ammo_favorites()
         end
@@ -414,7 +408,11 @@ function on_before_menu_open(name)
 end
 
 
-function to_ruck_or_slot_or_drop()
+function to_slot(obj)
+    manage_ammo_favorites()
+end
+
+function to_ruck(obj)
     local m = ui_inventory.GUI.mode or ""
     if m ~= "" then
         if not valid_guis[m] then
@@ -431,7 +429,7 @@ function on_option_change()
     if not ui_mcm then return end
     local get_config = ym_fav_ammos_mcm.get_config
 
-    for k,v in pairs(settings) do
+    for k,v in pairs(defaults) do
         local s = get_config(k)
         debug("mcm setting %s = %s",k , s)
         debug("k in settings %s", settings[k])
@@ -453,7 +451,7 @@ function load_state(mdata)
     local t = mdata.ym_auto_fav_ammos or {}
     favorites_ammos_addons_scopes = t.favorites or {}
 
-    settings = copy_table(defaults) or {}
+    settings = copy_table(defaults) 
 
 end
 
@@ -476,9 +474,10 @@ function on_game_start()
     RegisterScriptCallback("GUI_on_show", on_gui_show)
     RegisterScriptCallback("GUI_on_hide", on_gui_hide)
 
-    RegisterScriptCallback("actor_item_to_ruck", to_ruck_or_slot_or_drop)
-    RegisterScriptCallback("actor_item_to_slot", to_ruck_or_slot_or_drop)
-    RegisterScriptCallback("actor_on_item_drop", to_ruck_or_slot_or_drop)
+    RegisterScriptCallback("actor_item_to_slot", to_slot)
+
+    RegisterScriptCallback("actor_item_to_ruck", to_ruck)
+    RegisterScriptCallback("actor_on_item_drop", to_ruck)
 
     on_option_change()
 end
