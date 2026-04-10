@@ -1,0 +1,487 @@
+--[[
+    Mod Name: YesMan's Auto Favorites
+    Author:	Haruka for the entire mod, YesMan for tweaks
+    Created:	09-04-2026 (dd-mm-yyyy)
+    Last Edit:	09-04-2026 (dd-mm-yyyy)
+    Version:	v1.0
+]]
+
+ --#region DEBUG ----------------------------------------
+
+local modname = "YesMan's Auto Favorites"
+local DEBUG = true
+
+local function print_table (tbl, indent)
+    local g_type = type
+    if not indent then
+        indent = 0
+    end
+
+    utils_data.debug_write(string.rep(" ", indent) .. "{")
+
+    indent = indent + 2
+
+    if (g_type(tbl) == "userdata") then        
+        utils_data.debug_write("<userdata>,\n")
+    else
+        for k, v in pairs(tbl) do
+            local toprint = string.rep(" ", indent)
+
+            if (g_type(k) == "number") then
+                toprint = toprint .. "[" .. k .. "] = "
+            elseif (g_type(k) == "string") then
+                toprint = toprint  .. k ..  " = "
+            end
+
+            if (g_type(v) == "number") then
+                utils_data.debug_write(toprint .. v .. ",")
+            elseif (g_type(v) == "string") then
+                utils_data.debug_write(toprint .. "\"" .. v .. "\",")
+            elseif (g_type(v) == "table") then
+                utils_data.debug_write(toprint)
+                print_table(v, indent + 2)
+            else
+                utils_data.debug_write(toprint .. "\"" .. tostring(v) .. "\",")
+            end
+        end
+    end
+
+    utils_data.debug_write(string.rep(" ", indent-2) .. "}")
+end	
+
+
+--- Flattens a table of any nested status into a single string
+---@param o table
+---@return string 
+local function dump_table(o)
+   if type(o) == 'table' then
+      local s = '{ '
+      for k,v in pairs(o) do
+         if type(k) ~= 'number' then k = '"'..k..'"' end
+         s = s .. '['..k..'] = ' .. dump_table(v) .. ','
+      end
+      return s .. '} '
+   else
+      return tostring(o)
+   end
+end
+
+
+local function log(log_type, output, ...)
+    if not output then
+        utils_data.debug_write("[" .. modname .. "] "..log_type..": ".."(nil)")
+        callstack()
+    elseif (type(output) == "table") then
+        utils_data.debug_write("[" .. modname .. "] "..log_type..": ")
+        debug_print_table(output)
+    else
+        -- pulled from _g.script
+        -- more var subbing
+        if (select('#', ...) >= 1) then
+            local i = 0
+            local p = { ... }
+            local function sr(a)
+                i = i + 1
+                if (type(p[i]) == 'userdata') then
+                    if (p[i].x and p[i].y) then
+                        return vec_to_str(p[i])
+                    end
+                    return 'userdata'
+                end
+                return tostring(p[i])
+            end
+            output = string.gsub(output, "%%s", sr)
+        end
+        printf("[" .. modname .. "] " .. log_type .. ": " .. output, ...)
+    end
+end
+
+function debug(output,...)
+    if not DEBUG then return end
+    log("DEBUG", output, ...)
+end
+
+function info(output,...)
+    log("INFO ", output, ...)
+end
+
+function warn(output,...)
+    log("WARN ", output, ...)
+end
+
+function error(output,...)
+    log("ERROR", output, ...)
+end
+
+function debug_tip(text, delay,...)
+    debug(text, ...)
+
+    local text = "[" .. modname .. "] "..tostring(text)
+
+    if not db.actor then
+        return
+    end
+    
+    local ico = "ui_inGame2_Dengi_otdani"
+    local text_color = utils_xml.get_color("pda_white")
+
+    text = text_color .. text
+
+    if delay == nil then
+        delay = 6000
+    end
+
+    news_manager.send_tip(db.actor, text, nil, ico, delay)
+end
+
+local function debug_print_table(caption, tbl_options)
+    if not DEBUG then return end
+
+    if not tbl_options then 
+        info("debug_print_table: tbl_options is nil")
+        return 
+    end
+
+    local tbl = {}
+    if type(tbl_options[1]) ~="table" then
+        tbl = tbl_options
+    else
+        tbl = tbl_options[1]
+    end
+
+    local indent = tbl_options[2] or 0
+
+    debug(caption)
+    print_table(tbl, indent)
+end
+
+local function info_print_table(caption, tbl_options)
+    if not DEBUG then return end
+    if not tbl_options then 
+        info("info_print_table: tbl_options is nil")
+        return 
+    end
+
+    local tbl = {}
+
+    if type(tbl_options[1]) ~="table" then
+        tbl = tbl_options
+    else
+        tbl = tbl_options[1]
+    end
+
+    local indent = tbl_options[2] or 0
+
+    info(caption)
+    print_table(tbl, indent)
+end
+
+
+
+function open_specific_mcm(path)
+    if not DEBUG then return end
+
+    if ui_mcm then
+        exec_console_cmd("main_menu")
+
+        local function open_mcm_event(path)
+            ui_mcm.open_to(path)
+            return true
+        end
+
+
+        if demonized_time_events then
+            demonized_time_events.CreateTimeEvent("ym_open_mcm", "open_mcm",1, open_mcm_event, path)
+        else
+            CreateTimeEvent("ym_open_mcm", "open_mcm",1, open_mcm_event, path)
+        end
+    end
+end
+
+--#endregion------------------------------------------------------------------
+
+--------------------------------------------
+-- Source: Haruka's Auto Favorites mod
+--------------------------------------------
+local slots = {
+    [1] = true,
+    [2] = true,
+    [3] = true,
+    [5] = true
+}
+
+favorites_ammos_addons_scopes = {}
+
+local get_ammo = utils_item.get_ammo -- (section, id, by_key)
+local set_favorite = zzz_rax_sortingplus_mcm.set_favorite -- (sec, state)
+
+local addons = {
+    ["scopes_sect"] = true,
+    ["silencer_name"] = true,
+    ["grenade_launcher_name"] = true
+}
+
+----------------
+-- Default Settings
+----------------
+
+
+--- default settings
+defaults = {
+    ENABLE = true,
+    FAVORITE_AMMO = true,
+    FAVORITE_ADDONS = true,
+    FAVORITE_SCOPES = true,
+    ---@type boolean Only favorite ammos in trade/storage menus, and unfavorite when you leave those menus
+    ---
+    ---If `true`, favorite only in trade/bag inventories
+    TRADE_ONLY = false,
+
+    FAVORITE_TRADE_AMMO = true,
+    FAVORITE_TRADE_ADDONS = true,
+    FAVORITE_TRADE_SCOPES = true,
+}
+
+
+--- Copy from defaults in on_game_start
+settings = {
+    
+    -- ENABLE = true,
+    -- FAVORITE_AMMO = true,
+    -- FAVORITE_ADDONS = true,
+    -- FAVORITE_SCOPES = true,
+    -- ---@type boolean Only favorite ammos in trade/storage menus, and unfavorite when you leave those menus
+    -- ---
+    -- ---If `true`, favorite only in trade/bag inventories
+    -- TRADE_ONLY = false
+
+
+}
+
+valid_guis = {
+    ["loot"] = true,
+    ["trade"] = true
+}
+
+--------------------------------------------
+-- States
+--------------------------------------------
+
+is_trading = false
+
+--------------------------------------------
+
+---Auto favorite all potential addons, scopes, and kits for all currently equipped weapons
+function manage_ammo_favorites()
+    debug("starting autofavorite_ammos process")
+
+    -- clear favorites
+    debug("clearing old favorites")
+    local g_pairs = pairs
+    for k, ammo in g_pairs(favorites_ammos_addons_scopes) do
+        set_favorite(ammo, false)
+        favorites_ammos_addons_scopes[k] = nil
+    end
+
+    debug("checking if enabled or trading")
+    -- skip re-favoriting 
+    if  (not settings.ENABLE) or ((settings.TRADE_ONLY) and not is_trading) then return end
+
+    debug("actor check")
+    if not db.actor then return end
+
+    debug("starting new favorites process")
+    -- continue on to favorite equipped ammos, etc
+    for slot, _ in g_pairs(slots) do
+        debug("working on slot %s", slot)
+        local wpn = db.actor:item_in_slot(slot)
+        if wpn and not (IsItem("fake_ammo_wpn",wpn:section())) then
+            local sec,scopes, ammo_list
+
+            sec = wpn:section()
+            debug("working on weapon %s", sec)
+
+            -- check if player wants to favorite ammos
+            -- if not settings.FAVORITE_AMMO then goto scopes end
+
+            debug("checking if favorite ammo")
+            if settings.FAVORITE_AMMO then
+                debug("working on ammos")
+            ammo_list = get_ammo(nil, wpn:id(), true)
+            for ammo, _ in g_pairs(ammo_list) do
+                set_favorite(ammo, true)
+                favorites_ammos_addons_scopes[#favorites_ammos_addons_scopes + 1] = ammo
+            end
+            end
+
+            -- ::scopes::
+
+            -- check if player wants to favorite scopes
+            -- if not settings.FAVORITE_SCOPES then goto addons end
+
+            debug("checking if favorite scopes")
+            if settings.FAVORITE_SCOPES then
+                debug("working on scopes")
+            scopes = {}
+            scopes = SYS_GetParam(0, sec, "scopes")
+            if (scopes) then
+                scopes = str_explode(scopes, ",")
+                for _, v in g_pairs(scopes) do
+                    if v ~= "none" then
+                        set_favorite(v, true)
+                        favorites_ammos_addons_scopes[#favorites_ammos_addons_scopes + 1] = v
+                    end
+                end
+            end
+
+        end
+
+            -- ::addons::
+  
+            -- check if player wants to favorite addons
+            -- if not settings.FAVORITE_ADDONS then goto continue end
+
+            debug("checking if favorite addons")
+            if settings.FAVORITE_ADDONS then
+                debug("working on addons")
+            for param, _ in g_pairs(addons) do
+                local addon = utils_item.get_wpn_param(wpn, sec, param)
+                if addon then
+                    favorites_ammos_addons_scopes[#favorites_ammos_addons_scopes + 1] = addon
+                    set_favorite(addon, true)
+                end
+            end
+        end
+
+            -- end
+            -- ::continue::
+        end
+    end
+end
+
+
+--------------------------------------------
+--#region Events
+--------------------------------------------
+function on_gui_show(name)
+    debug("on_gui_show | name = %s", name)
+    debug("uiInventory.mode = %s", ui_inventory.GUI.mode)
+    if _GUIs["UIInventory"] and ui_inventory.GUI and ui_inventory.GUI.mode then
+
+        local m = ui_inventory.GUI.mode
+
+        -- check if trading or storage menu is open
+        if valid_guis[m] then
+            is_trading = true
+
+            -- run favorites process
+            manage_ammo_favorites()
+
+            -- reset state
+            is_trading = false
+
+            -- hacky method to refresh menu
+            if demonized_time_events then
+                local f = function()
+                    level.press_action(DIK_keys.DIK_1)
+                    return true
+                end
+                demonized_time_events.CreateTimeEvent("ym_auto_fav_ammos_menu_refresh", "ym_auto_fav_ammos_menu_refresh", 0, f)
+            end
+        end
+
+    end
+end
+
+function on_gui_hide(name)
+    debug("on_gui_hide | name = %s", name)
+    debug("uiInventory.mode = %s", ui_inventory.GUI.mode)
+    if  ui_inventory.GUI and ui_inventory.GUI.mode then
+
+        debug("checking if valid hide menu")
+        local m = ui_inventory.GUI.mode
+        if valid_guis[m] then 
+            debug("attempting to clear favorites")
+            is_trading = false
+            manage_ammo_favorites()
+        end
+    end
+end
+
+function on_before_menu_open(name)
+    debug("on_before_menu_open | name = %s", name)
+    debug("uiInventory.mode = %s", ui_inventory.GUI.mode)
+end
+
+
+function to_ruck_or_slot_or_drop()
+    local m = ui_inventory.GUI.mode or ""
+    if m ~= "" then
+        if not valid_guis[m] then
+            manage_ammo_favorites()
+        end
+    end
+end
+
+--------------------------------------------
+-- MCM
+--------------------------------------------
+
+function on_option_change()
+    if not ui_mcm then return end
+    local get_config = ym_fav_ammos_mcm.get_config
+
+    for k,v in pairs(settings) do
+        local s = get_config(k)
+        debug("mcm setting %s = %s",k , s)
+        debug("k in settings %s", settings[k])
+        settings[k] = s
+    end
+
+    local modname = "autofavorite_ammos/"
+    -- settings["ENABLE"] = ui_mcm.get(modname .. "ENABLE")
+    -- settings["FAVORITE_AMMO"] = ui_mcm.get(modname .. "FAVORITE_AMMO")
+
+    manage_ammo_favorites()
+
+    debug_print_table("settings:", settings)
+end
+
+
+function load_state(mdata)
+    if not mdata then return end
+    local t = mdata.ym_auto_fav_ammos or {}
+    favorites_ammos_addons_scopes = t.favorites or {}
+
+    settings = copy_table(defaults) or {}
+
+end
+
+function save_state(mdata)
+    local t = {}
+    t.favorites = favorites_ammos_addons_scopes
+
+    mdata.ym_auto_fav_ammos = t
+end
+
+function on_game_start()
+
+	RegisterScriptCallback("on_option_change", on_option_change)
+	RegisterScriptCallback("load_state", load_state)
+	RegisterScriptCallback("save_state", save_state)
+
+	-- RegisterScriptCallback("ActorMenu_on_trade_started",on_trade_opened)
+	-- RegisterScriptCallback("ActorMenu_on_trade_closed",on_trade_closed)
+    -- RegisterScriptCallback("ActorMenu_on_before_init_mode", on_before_menu_open)
+    RegisterScriptCallback("GUI_on_show", on_gui_show)
+    RegisterScriptCallback("GUI_on_hide", on_gui_hide)
+
+    RegisterScriptCallback("actor_item_to_ruck", to_ruck_or_slot_or_drop)
+    RegisterScriptCallback("actor_item_to_slot", to_ruck_or_slot_or_drop)
+    RegisterScriptCallback("actor_on_item_drop", to_ruck_or_slot_or_drop)
+
+    on_option_change()
+end
+
+
+--#endregion------------------------------------------

@@ -1,0 +1,50 @@
+local defaults = ym_fav_ammos.defaults
+
+options = {}
+function on_mcm_load()
+    defaults = ym_fav_ammos.defaults 
+
+    options = {
+        id = "autofavorite_ammos",
+        sh = true,
+        gr = {
+            {
+                id = "title",
+                type = "slide",
+                text = "ui_mcm_autofavorite_ammos_title",
+                size = { 512, 50 },
+                spacing = 20
+            },
+            -- { id = "ENABLE",   type = "check", val = 1, def = defaults.ENABLE },
+            -- { id = "FAVORITE_AMMO",   type = "check", val = 1, def = defaults.FAVORITE_AMMO },
+            -- { id = "FAVORITE_ADDONS", type = "check", val = 1, def = defaults.FAVORITE_ADDONS },
+            -- { id = "FAVORITE_SCOPES", type = "check", val = 1, def = defaults.FAVORITE_SCOPES },
+            -- { id = "TRADE_ONLY", type = "check", val = 1, def = defaults.TRADE_ONLY },
+        },
+    }
+
+    for k,v in pairs(ym_fav_ammos.defaults) do
+        options.gr[0][#options.gr[0]+1] = {
+            id = tostring(k),
+            type = "check",
+            val = 1,
+            def = v
+        }        
+
+    end
+    
+    return options
+end
+
+---Get mcm setting from any other script
+---@param setting  "ENABLE"|"FAVORITE_AMMO"|"FAVORITE_ADDONS"|"FAVORITE_SCOPES"|"TRADE_ONLY": MCM setting to get
+---@return boolean|nil: Value of the mcm setting
+function get_config(setting)
+    local s = ui_mcm.get("autofavorite_ammos/" .. setting)
+    if s ~= nil then
+        return s
+    else 
+        return defaults[s]
+    end
+end
+

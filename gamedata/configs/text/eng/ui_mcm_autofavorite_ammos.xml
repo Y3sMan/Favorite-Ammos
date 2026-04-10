@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="windows-1251"?>
+
+<string_table>
+
+    <string id="ui_mcm_menu_autofavorite_ammos">
+        <text>Autofavorite Ammos</text>
+    </string>
+    <string id="ui_mcm_autofavorite_ammos_title">
+        <text>Autofavorite Ammos</text>
+    </string>
+
+    <string id="ui_mcm_autofavorite_ammos_ENABLE">
+        <text>Enable Mod</text>
+    </string>
+
+    <string id="ui_mcm_autofavorite_ammos_FAVORITE_AMMO">
+        <text>Favorite Ammos</text>
+    </string>
+    <string id="ui_mcm_autofavorite_ammos_FAVORITE_AMMO_desc">
+        <text>Whether to favorite ammos or not</text>
+    </string>
+
+    <string id="ui_mcm_autofavorite_ammos_FAVORITE_ADDONS">
+        <text>Favorite Addons</text>
+    </string>
+    <string id="ui_mcm_autofavorite_ammos_FAVORITE_ADDONS_desc">
+        <text>Whether to favorite addon kits</text>
+    </string>
+
+    <string id="ui_mcm_autofavorite_ammos_FAVORITE_SCOPES">
+        <text>Favorite Scopes</text>
+    </string>
+    <string id="ui_mcm_autofavorite_ammos_FAVORITE_SCOPES_desc">
+        <text>Whether to favorite scopes</text>
+    </string>
+
+    <string id="ui_mcm_autofavorite_ammos_TRADE_ONLY">
+        <text>Only in Trade Menu</text>
+    </string>
+    <string id="ui_mcm_autofavorite_ammos_TRADE_ONLY_desc">
+        <text>Enable to only favorite ammos and etc in trade/storage menus. Those ammos will unfavorite when the menu closes. Disable to always auto-favorite ammos and etc.</text>
+    </string>
+
+</string_table>
